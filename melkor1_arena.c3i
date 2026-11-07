@@ -3,30 +3,120 @@ module melkor1_arena;
 <* Bump allocator arena. *>
 alias Arena = void;
 
-<* Returns a new arena with the specified `capacity`.
+<*
+ Returns a new arena with the specified `capacity`.
  If `capacity` is 0, a default size of `DEFAULT_BUF_CAP` is used.
  If `buf` is `nullptr`, a memory pool of the specified `capacity` is
  allocated internally. Else if `capacity` is 0, a default size of 
  `DEFAULT_BUF_CAP` is used.
  
- On allocation failure, or if `buf` is a non-null pointer and `capacity` is 0,
- returns `nullptr`. 
- *
- Passing a `buf` that is smaller than the specified `capacity` would invoke
- undefined behavior. *>
+ On allocation failure, or if `buf` is a non-null
+ pointer and `capacity` is 0, returns `nullptr`.
+
+ Passing a `buf` that is smaller than the specified `capacity`
+ would invoke undefined behavior.
+*>
 fn Arena *arena_new(void *buf,usz capacity) @cname("arena_new");
+
+<*
+ Destroys `arena`, freeing all the memory associated with it.
+ Any pointer allocated by this arena is invalidated after this call.
+*>
 fn void arena_destroy(Arena *arena) @cname("arena_destroy");
+
+<*
+ Resets `arena`, invalidating all existing allocations.
+ Whilst existing pointers allocated by this arena
+ are valid after this call
+ as far as the language is concerned, they should be
+ considered invalid as using them  would invoke Undefined Behavior.
+*>
 fn void arena_reset(Arena *arena) @cname("arena_reset");
+
+<*
+ Allocates a pointer from `arena`.
+ The allocated pointer is at least aligned to `alignment`.
+
+ `alignment` must be a power of 2.
+ `size` must be a multiple of `alignment`.
+
+ If a request can not be entertained, i.e. would overflow, or `arena` is full,
+ the function returns `nullptr`. The function also returns a `nullptr` if the 
+ requested `size` or `alignment` is 0 or if `alignment` is not a power of 2, 
+ or if `size` is not a multiple of `alignment`.
+ Any allocations made prior to this call are not freed on failure, and remain 
+ valid until the arena is either reset or destroyed.
+*>
 fn void *arena_alloc(Arena *arena,usz alignment,usz size) @cname("arena_alloc");
+
+<*
+ Adds a new memory pool to the existing arena `arena`.
+ If `capacity` is 0, a default size of `DEFAULT_BUF_CAP` is used.
+ On allocation failure, or if `buf` is a non-null pointer and
+ `capacity` is 0, returns `nullptr`. 
+
+ Any allocations made prior to this call are not freed on failure,
+ and remain valid until the arena is either reset or destroyed.
+
+ Passing a `buf` that is smaller than the specified `capacity`,
+ or passing an `arena` that was not returned by `arena_new()`
+ would invoke Undefined Behavior.
+*>
 fn Arena *arena_resize(Arena *arena,
 		       void *buf,
 		       usz capacity) @cname("arena_resize");
+
+<*
+ Allocates a pointer from `arena` large enough for an array of `nmemb` 
+ elements, each of which is `size` bytes.
+ It is equivalent to the call:
+ arena_alloc(arena, alignment, nmemb size);
+ However, unlike that `arena_alloc()` call, `arena_allocarray()`
+ fails safely in the case where the multiplication would overflow.
+ If such an overflow occurs, `arena_allocarray()` returns `nullptr`.
+ Has the same requirements for `size` and `alignment`
+ as `arena_alloc()`, and returns `nullptr`
+ for all the cases `arena_alloc()` does.
+ Any allocations made prior to this call are not freed on failure,
+ and remain valid until the arena is either reset or destroyed.
+*>
 fn void *arena_allocarray(Arena *arena,
 			  usz alignment,
 			  usz nmemb,
 			  usz size) @cname("arena_allocarray");
+
+<*
+ Extends the last allocation in place.
+ If `size` is 0, the last allocation is deleted.
+ Else if it is less than the last allocated size,
+ it is shrinked to `size`. Else, it is expanded to `size` bytes.
+ Returns `false` if the request can not be entertained,
+ i.e out of memory. Else it returns `true`.
+*>
 fn CBool arena_realloc(Arena *arena,usz size) @cname("arena_realloc");
+
+<*
+ Gets the remaining capacity in the current pool (in bytes).
+*>
 fn usz arena_pool_capacity(Arena *arena) @cname("arena_pool_capacity");
+
+<*
+ Calculates the number of bytes currently
+ allocated across all chunks in `arena`.
+ If you allocate types of different
+ alignments or types with larger-than-typical 
+ alignment in the same arena,
+ some padding bytes might get allocated in the arena.
+ Those padding bytes will add to this function's resulting sum.
+ The allocated bytes do not include the size of this arena's metadata.
+*>
 fn usz arena_allocated_bytes(Arena *arena) @cname("arena_allocated_bytes");
+
+<*
+ Calculates the number of bytes requested from
+ the C allocator for this arena.
+ This number is equal to the allocated_bytes()
+ plus the size of the arena metadata.
+*>
 fn usz arena_allocated_bytes_including_metadata(Arena *arena) @cname("arena_allocated_bytes_including_metadata");
 
